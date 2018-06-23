@@ -26,6 +26,22 @@ class Enemy extends Entity {
     constructor(pos: Vec2) {
 	super(pos);
     }
+
+    onCollided(entity: Entity) {
+        if (entity instanceof Player) {
+            this.stop();
+        }
+    }
+}
+
+class Spike extends Enemy {
+
+    constructor(pos: Vec2) {
+	super(pos);
+        let sprite = SPRITES.get(2);
+	this.sprites = [sprite];
+	this.collider = sprite.getBounds();
+    }
 }
 
 class Bird extends Enemy {
@@ -49,12 +65,6 @@ class Bird extends Enemy {
             this.movement.x = -this.movement.x;
         }
         this.scale = new Vec2(sign(this.movement.x), 1);
-    }
-
-    onCollided(entity: Entity) {
-        if (entity instanceof Player) {
-            this.stop();
-        }
     }
 }
 
@@ -123,7 +133,7 @@ class Player extends Entity {
 
 //  Game
 //
-class Game extends GameScene {
+class Game extends Scene {
 
     textbox: TextBox;
     clouds: StarSprite;
@@ -132,33 +142,52 @@ class Game extends GameScene {
     ty: number;
     impact: Vec2 = new Vec2();
 
+    startTime: number = 0;
+    world1: World = null;
+    current: World = null;
+
     onStart() {
 	super.onStart();
 	this.textbox = new TextBox(this.screen.inflate(-8,-8), FONT);
+        this.startTime = getTime();
 
-        let area = this.world.area;
+        // World1
+        this.world1 = new World(this.screen);
+        let area = this.world1.area;
         area.height = 1000;
 	this.clouds = new StarSprite(
             area.inflate(40, -80), 50, 5,
-            [new RectSprite('rgba(255,255,255,0.9)', new Rect(-10,-10,20,20)),
-             new RectSprite('rgba(255,255,255,0.8)', new Rect(-20,-10,40,20))]);
+            [new OvalSprite('rgba(255,255,255,0.9)', new Rect(-20,-5,40,10)),
+             new OvalSprite('rgba(255,255,255,0.8)', new Rect(-40,-20,80,40))]);
 	this.player = new Player(this, new Vec2(area.width/2, area.height-100));
-	this.add(this.player);
-
+	this.world1.add(this.player);
         for (let i = 0; i < 10; i++) {
             let p = new Vec2(rnd(area.width), rnd(area.height-100));
-            this.add(new Bird(p));
+            this.world1.add(new Bird(p));
+        }
+        for (let i = 0; i < 10; i++) {
+            let p = new Vec2(rnd(area.width), rnd(area.height-100));
+            this.world1.add(new Spike(p));
         }
         this.ty = area.height-8;
         this.vy = -12;
+
+        this.current = this.world1;
     }
 
     onTick() {
 	super.onTick();
-	this.clouds.move(new Vec2(+1, 0));
-        let target = this.player.pos.expand(0, this.screen.height);
-        this.world.setCenter(target, this.world.area);
-        this.impact.y = lowerbound(0, this.impact.y-1);
+	this.current.onTick();
+        if (this.current === this.world1) {
+	    this.clouds.move(new Vec2(+1, 0));
+            let target = this.player.pos.expand(0, this.screen.height);
+            this.world1.setCenter(target, this.world1.area);
+            this.impact.y = lowerbound(0, this.impact.y-1);
+        }
+        let t = int(getTime()-this.startTime);
+        let s = int(t/60)+':'+format(t % 60, 2, '0')
+        this.textbox.clear();
+        this.textbox.putText([s], 'center');
     }
 
     onDirChanged(v: Vec2) {
@@ -181,24 +210,27 @@ class Game extends GameScene {
     }
 
     render(ctx: CanvasRenderingContext2D) {
-	ctx.save();
-	ctx.translate(-this.world.window.x, -this.world.window.y);
-        let area = this.world.area;
-        let yy = int(area.height/3);
-	ctx.fillStyle = '#001080';
-	ctx.fillRect(0, 0, area.width, yy);
-	ctx.fillStyle = '#0020c0';
-	ctx.fillRect(0, yy, area.width, area.height-yy);
-	this.clouds.render(ctx);
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, this.ty);
-        ctx.lineTo(this.impact.x, this.ty+this.impact.y);
-        ctx.lineTo(area.width, this.ty);
-        ctx.stroke();
-	ctx.restore();
+        if (this.current === this.world1) {
+	    ctx.save();
+	    ctx.translate(-this.world1.window.x, -this.world1.window.y);
+            let area = this.world1.area;
+            let yy = int(area.height/3);
+	    ctx.fillStyle = '#001080';
+	    ctx.fillRect(0, 0, area.width, yy);
+	    ctx.fillStyle = '#0020c0';
+	    ctx.fillRect(0, yy, area.width, area.height-yy);
+	    this.clouds.render(ctx);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, this.ty);
+            ctx.lineTo(this.impact.x, this.ty+this.impact.y);
+            ctx.lineTo(area.width, this.ty);
+            ctx.stroke();
+	    ctx.restore();
+        }
 	super.render(ctx);
+        this.current.render(ctx);
 	this.textbox.render(ctx);
     }
 }
