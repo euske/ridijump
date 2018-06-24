@@ -3,6 +3,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ridiculous Jump</title>
 <style>
 canvas {
@@ -12,15 +13,8 @@ canvas {
 }
 </style>
 <script language="javascript" src="js/game.js"></script>
-<body bgcolor="black" text="white" link="cyan" onload="main(Game,160,240);">
-<h1 align=center>Ridiculous Jump</h1>
-<div style="margin: 1em;" align=center>
-  <p> 3rd Alakajam, Jun 23th, 2018, Theme:
-    <a target="alakajam" href="https://alakajam.com/3rd-alakajam/309/ridiculous-jump/">"Always Growing"</a>
-  <div id="game" style="position: relative; width: 320px; height: 480px;"></div>
-  <p> Get to the Top of the World as soon as possible!
-</div>
-<div align=right>Made with <a href="https://github.com/euske/euskit">Euskit</a>.</div>
+<body bgcolor="black" style="width:100%; height:100%; margin:0; padding:0;" onload="main(Game,160,240);">
+<div id="game" style="position: absolute; width:100%; height:100%; margin:0; padding:0;"></div>
 <div style="display:none;">
   <img id="font" src="assets/font.png">
   <img id="sprites" src="assets/sprites.png">
