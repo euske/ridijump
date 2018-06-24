@@ -13,7 +13,7 @@
 let FONT: Font;
 let SPRITES:ImageSpriteSheet;
 addInitHook(() => {
-    FONT = new Font(APP.images['font'], 'white');
+    FONT = new ShadowFont(APP.images['font'], 'white');
     SPRITES = new ImageSpriteSheet(
 	APP.images['sprites'], new Vec2(16,16), new Vec2(8,8));
 });
@@ -102,7 +102,6 @@ class Satellite extends Projectile {
     constructor(pos: Vec2, vx: number) {
 	super(pos, vx);
         let sprite = SPRITES.get(3);
-        (sprite as HTMLSprite).dstRect = new Rect(-16,-16,32,32);
 	this.sprites = [sprite];
 	this.collider = sprite.getBounds().inflate(-2,-2);
     }
@@ -128,14 +127,14 @@ class Ufo extends Projectile {
         (sprite as HTMLSprite).dstRect = new Rect(-16,-16,32,32);
 	this.sprites = [sprite];
 	this.collider = sprite.getBounds().inflate(-4,-4);
-        this.vy = rnd(3)-1;
+        this.vy = rnd(9)-4;
     }
 
     onTick() {
 	super.onTick();
         this.pos.y += this.vy;
         if (rnd(10) == 0) {
-            this.vy = rnd(3)-1;
+            this.vy = rnd(9)-4;
         }
     }
 }
@@ -170,6 +169,7 @@ class Player extends Entity {
     game: Game;
     vx: number = 0;
     vy: number = 0;
+    my: number = 0;
     gx: number|null = null;
     dying: boolean = false;
 
@@ -198,7 +198,7 @@ class Player extends Entity {
         this.scale.y = (this.dying)? -1 : 1;
         this.vy += 1;
         if (this.dying) {
-            this.vy = upperbound(this.vy, 8);
+            this.vy = upperbound(this.vy, this.my);
         } else {
             this.vy = upperbound(this.vy, 16);
         }
@@ -225,7 +225,7 @@ class Player extends Entity {
             if (!this.dying) {
                 this.dying = true;
                 this.vy = 0;
-                this.game.bump();
+                this.my = this.game.bump();
             }
         }
     }
@@ -241,7 +241,7 @@ class Game extends Scene {
     current: World;
     player: Player;
     vy: number;
-    stage: number;
+    maxStage: number;
 
     world1: World;
     clouds: StarSprite;
@@ -257,6 +257,7 @@ class Game extends Scene {
     onStart() {
 	super.onStart();
 	this.textbox = new TextBox(this.screen.inflate(-16,-16), FONT);
+        this.textbox.lineSpace = 8;
         this.startTime = getTime();
 
         // World1
@@ -265,20 +266,27 @@ class Game extends Scene {
             this.world1 = new World(area);
             this.world1.window = this.screen.copy();
 	    this.clouds = new StarSprite(
-                area.inflate(40, -80), 50, 5,
-                [new OvalSprite('rgba(255,255,255,0.9)', new Rect(-20,-5,40,10)),
-                 new OvalSprite('rgba(255,255,255,0.8)', new Rect(-40,-20,80,40))]);
-            for (let i = 0; i < 1; i++) {
+                area.inflate(40, -80), 50, 2,
+                [new OvalSprite('rgba(255,255,255,0.9)', new Rect(-10,-3,20,6)),
+                 new OvalSprite('rgba(255,255,255,0.8)', new Rect(-20,-10,40,20))]);
+            for (let i = 0; i < 3; i++) {
                 let p = area.rndPt();
                 p.y = clamp(0, p.y, area.height-100);
                 this.world1.add(new Bird(p));
             }
-            for (let i = 0; i < 1; i++) {
+            for (let i = 0; i < 3; i++) {
                 let p = area.rndPt();
                 p.y = clamp(0, p.y, area.height-100);
                 this.world1.add(new Spike(p));
             }
             this.impact = new Vec2();
+	    // show a banner.
+	    let banner = new BannerBox(
+	        this.screen, FONT,
+	        ['AVOID THINGS!']);
+	    banner.lifetime = 2.0;
+	    banner.interval = 0.5;
+	    this.world1.add(banner);
         }
 
         // World2
@@ -289,12 +297,12 @@ class Game extends Scene {
 	    this.stars = new StarSprite(
                 area.inflate(0, -20), 100, 2,
                 [new RectSprite('#0088ff', new Rect(-2,-2,4,4))]);
-            for (let i = 0; i < 1; i++) {
+            for (let i = 0; i < 5; i++) {
                 let p = area.rndPt();
                 p.y = clamp(0, p.y, area.height-100);
                 this.world2.add(new Asteroid(p));
             }
-            for (let i = 0; i < 1; i++) {
+            for (let i = 0; i < 3; i++) {
                 let vx = rnd(2)*2-1;
                 let p = area.rndPt();
                 p.y = clamp(0, p.y, area.height-100);
@@ -304,17 +312,17 @@ class Game extends Scene {
 
         // World3
         {
-            let area = new Rect(-this.screen.width*2, 0, this.screen.width*4, 4000);
+            let area = new Rect(-this.screen.width*2, 0, this.screen.width*4, 3000);
             this.world3 = new World(area);
             this.world3.window = this.screen.scale(4);
 	    this.galaxies = new StarSprite(
                 area.inflate(0, -100), 100, 2);
-            for (let i = 0; i < 1; i++) {
+            for (let i = 0; i < 5; i++) {
                 let p = area.rndPt();
                 p.y = clamp(0, p.y, area.height-100);
                 this.world3.add(new Sun(p));
             }
-            for (let i = 0; i < 1; i++) {
+            for (let i = 0; i < 3; i++) {
                 let p = area.rndPt();
                 p.y = clamp(0, p.y, area.height-100);
                 this.world3.add(new Galaxy(p));
@@ -332,14 +340,21 @@ class Game extends Scene {
 	this.world2.add(this.player);
 	this.world3.add(this.player);
 
-        this.stage = 1;
-        this.vy = -12;
+        this.vy = 0;
         this.nextSpawn = 0;
-        this.current = this.world3;
+        this.maxStage = 1;
+        this.setStage(1);
+        APP.setMusic('music', MP3_GAP, 40);
     }
 
     onTick() {
 	super.onTick();
+        if (this.current !== null) {
+            this.doit();
+        }
+    }
+
+    doit() {
 	this.current.onTick();
         let target = this.player.pos.expand(
             this.current.window.width, this.current.window.height);
@@ -351,7 +366,6 @@ class Game extends Scene {
             this.impact.y = lowerbound(0, this.impact.y-1);
             if (this.player.pos.y < 0) {
                 this.player.pos.y += this.world2.area.height;
-                this.current = this.world2;
                 this.setStage(2);
             }
 
@@ -368,11 +382,10 @@ class Game extends Scene {
             }
             if (this.player.pos.y < 0) {
                 this.player.pos.y += this.world3.area.height;
-                this.current = this.world3;
                 this.setStage(3);
             } else if (this.world2.area.height < this.player.pos.y) {
                 this.player.pos.y -= this.world2.area.height;
-                this.current = this.world1;
+                this.setStage(1);
             }
 
         } else if (this.current === this.world3) {
@@ -390,13 +403,16 @@ class Game extends Scene {
                 this.setStage(4);
             } else if (this.world3.area.height < this.player.pos.y) {
                 this.player.pos.y -= this.world3.area.height;
-                this.current = this.world2;
+                this.setStage(2);
             }
         }
-        let t = int(getTime()-this.startTime);
-        let s = int(t/60)+':'+format(t % 60, 2, '0')
-        this.textbox.clear();
-        this.textbox.putText([s], 'center', 'bottom');
+
+        if (this.current !== null) {
+            let t = int(getTime()-this.startTime);
+            let s = int(t/60)+':'+format(t % 60, 2, '0')
+            this.textbox.clear();
+            this.textbox.putText([s], 'center', 'bottom');
+        }
     }
 
     onDirChanged(v: Vec2) {
@@ -417,48 +433,83 @@ class Game extends Scene {
     }
 
     setStage(stage: number) {
-        if (this.stage < stage) {
-            this.stage = stage;
+        if (this.maxStage < stage) {
+            this.maxStage = stage;
             this.nextSpawn = 0;
             APP.playSound('powerup');
+        }
+        switch (stage) {
+        case 1:
+            this.current = this.world1;
+            break;
+        case 2:
+            this.current = this.world2;
+            break;
+        case 3:
+            this.current = this.world3;
+            break;
+        default:
+            this.current = null;
+            let t = int(getTime()-this.startTime);
+            let s = int(t/60)+':'+format(t % 60, 2, '0')
+            this.textbox.clear();
+            this.textbox.putText(
+                ['YOU REACHED','END OF UNIVERSE','IN '+s],
+                'center', 'center');
+            break;
         }
     }
 
     jump(vy: number): number {
         APP.playSound('jump1')
-        info(vy);
-        switch (this.stage) {
-        case 2:
-            this.vy -= 6;
-            break;
-        case 3:
-            this.vy -= 8;
-            break;
-        default:
-            this.vy -= 4;
-            break;
+        if (this.vy == 0) {
+            switch (this.maxStage) {
+            case 1:
+                this.vy = -12;
+                break;
+            case 2:
+                this.vy = -16;
+                break;
+            case 3:
+                this.vy = -24;
+                break;
+            }
+        } else {
+            switch (this.maxStage) {
+            case 2:
+                this.vy -= 6;
+                break;
+            case 3:
+                this.vy -= 8;
+                break;
+            default:
+                this.vy -= 4;
+                break;
+            }
         }
         this.impact = new Vec2(this.player.pos.x, 8);
         return this.vy;
     }
 
-    bump() {
+    bump(): number {
         APP.playSound('explosion');
-        switch (this.stage) {
+        this.vy = 0;
+        switch (this.maxStage) {
+        case 1:
+            return 8;
         case 2:
-            this.vy = -16;
-            break;
+            return 12;
         case 3:
-            this.vy = -20;
-            break;
+            return 16;
         default:
-            this.vy = -12;
-            break;
+            return 0;
         }
     }
 
     render(ctx: CanvasRenderingContext2D) {
 	super.render(ctx);
+	ctx.fillStyle = '#000000';
+	ctx.fillRect(0, 0, this.screen.width, this.screen.height);
         if (this.current === this.world1) {
             let area = this.world1.area;
 	    ctx.save();
@@ -466,14 +517,12 @@ class Game extends Scene {
             {
 	        ctx.save();
 	        ctx.translate(area.x, area.y);
-                let y: number;
                 for (let i = 0; i < 10; i++) {
                     let c = new Color(0,0.08+i*0.006,0.4+i*0.1);
-                    y = i*area.height/20;
 	            ctx.fillStyle = c.toString();
-	            ctx.fillRect(0, y, area.width, area.height/20);
+	            ctx.fillRect(0, i*50, area.width, 50);
                 }
-	        ctx.fillRect(0, y, area.width, area.height-y);
+	        ctx.fillRect(0, 500, area.width, area.height-500);
 	        ctx.restore();
             }
 	    this.clouds.render(ctx);
@@ -499,9 +548,8 @@ class Game extends Scene {
 	        ctx.translate(area.x, area.y);
                 for (let i = 0; i < 10; i++) {
                     let c = new Color(0,i*0.04,i*0.1);
-                    let y = area.height/2+i*area.height/20;
 	            ctx.fillStyle = c.toString();
-	            ctx.fillRect(0, y, area.width, area.height/20);
+	            ctx.fillRect(0, 1000+i*100, area.width, 100);
                 }
                 ctx.restore();
 	        this.stars.render(ctx);
@@ -520,10 +568,9 @@ class Game extends Scene {
 	        ctx.save();
 	        ctx.translate(area.x, area.y);
                 for (let i = 0; i < 10; i++) {
-                    let y = i*area.height/20;
-                    let c = new Color(0.4-i*0.03,0,0);
+                    let c = new Color(0.3-i*0.03,0,0);
 	            ctx.fillStyle = c.toString();
-	            ctx.fillRect(0, y, area.width, area.height/20);
+	            ctx.fillRect(0, i*100, area.width, 100);
                 }
                 ctx.restore();
 	        this.galaxies.render(ctx);
@@ -531,6 +578,9 @@ class Game extends Scene {
             }
             this.current.render(ctx);
 	    ctx.restore();
+        } else {
+	    ctx.fillStyle = '#000022';
+	    ctx.fillRect(0, 0, this.screen.width, this.screen.height);
         }
 
 	this.textbox.render(ctx);
